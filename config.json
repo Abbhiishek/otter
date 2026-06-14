@@ -1,0 +1,18 @@
+{
+  "window": {
+    "x": 1571,
+    "y": 14,
+    "width": 126,
+    "height": 104
+  },
+  "quota": {
+    "weekly_quota_tokens": 3822299300,
+    "tokens_used": 114668979,
+    "data_source": "local_json",
+    "poll_interval_sec": 30
+  },
+  "appearance": {
+    "otto_scale": 0.5,
+    "show_percentage_badge": false
+  }
+}
