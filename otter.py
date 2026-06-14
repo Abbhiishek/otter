@@ -29,8 +29,8 @@ except ImportError:
 APP_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = APP_DIR / "config.json"
 USAGE_PATH = APP_DIR / "usage.json"
-OTTO_ANIMATION_DIR = APP_DIR / "assets" / "otter_animations"
-OTTO_FRAME_MS = 120
+OTTER_ANIMATION_DIR = APP_DIR / "assets" / "otter_animations"
+OTTER_FRAME_MS = 120
 CLAUDE_LOG_DIRS = (
     Path.home() / ".claude" / "projects",
     Path.home() / ".claude" / "sessions",
@@ -55,7 +55,7 @@ DEFAULT_CONFIG = {
         "poll_interval_sec": 30,
     },
     "appearance": {
-        "otto_scale": 0.5,
+        "otter_scale": 0.5,
         "show_percentage_badge": False,
     },
 }
@@ -183,14 +183,17 @@ def normalize_config(config: dict) -> None:
         int_or_default(quota.get("poll_interval_sec"), DEFAULT_CONFIG["quota"]["poll_interval_sec"]),
     )
 
-    scale_value = appearance.get("otto_scale")
+    scale_value = appearance.get("otter_scale")
+    if scale_value is None:
+        scale_value = appearance.get("otto_scale")
     if scale_value is None:
         scale_value = appearance.get("pet_scale")
-    appearance["otto_scale"] = float_or_default(
+    appearance["otter_scale"] = float_or_default(
         scale_value,
-        DEFAULT_CONFIG["appearance"]["otto_scale"],
+        DEFAULT_CONFIG["appearance"]["otter_scale"],
     )
-    appearance["otto_scale"] = min(1.0, max(0.25, appearance["otto_scale"]))
+    appearance["otter_scale"] = min(1.0, max(0.25, appearance["otter_scale"]))
+    appearance.pop("otto_scale", None)
     appearance.pop("pet_scale", None)
     appearance["show_percentage_badge"] = bool(
         appearance.get(
@@ -715,7 +718,7 @@ class WindowsTrayIcon:
         self._configure_api()
         self.hwnd = None
         self.menu: tk.Menu | None = None
-        self._class_name = f"OttoTrayWindow{os.getpid()}"
+        self._class_name = f"OtterTrayWindow{os.getpid()}"
         self._wndproc = self.WNDPROC(self._handle_message)
         self._create_message_window()
         self._create_icon()
@@ -779,7 +782,7 @@ class WindowsTrayIcon:
         hwnd = self.user32.CreateWindowExW(
             0,
             self._class_name,
-            "Otto Tray Window",
+            "Otter Tray Window",
             0,
             0,
             0,
@@ -803,7 +806,7 @@ class WindowsTrayIcon:
         nid.uFlags = self.NIF_MESSAGE | self.NIF_ICON | self.NIF_TIP
         nid.uCallbackMessage = self.WM_TRAY
         nid.hIcon = hicon
-        nid.szTip = "Otto"
+        nid.szTip = "Otter"
 
         if not self.user32.FindWindowW("Shell_TrayWnd", None):
             raise RuntimeError("Windows taskbar notification area is not available in this session.")
@@ -866,10 +869,10 @@ class SettingsDialog:
     }
     SOURCE_VALUES = {value: key for key, value in SOURCE_LABELS.items()}
 
-    def __init__(self, app: "OttoApp"):
+    def __init__(self, app: "OtterApp"):
         self.app = app
         self.window = tk.Toplevel(app.root)
-        self.window.title("Otto Settings")
+        self.window.title("Otter Settings")
         self.window.transient(app.root)
         self.window.resizable(False, False)
         self.window.attributes("-topmost", True)
@@ -893,7 +896,7 @@ class SettingsDialog:
 
         self.window.grab_set()
         self.window.update_idletasks()
-        self._center_over_otto()
+        self._center_over_otter()
         self.window.focus_force()
 
     def _build(self) -> None:
@@ -963,7 +966,7 @@ class SettingsDialog:
 
         frame.columnconfigure(1, weight=1)
 
-    def _center_over_otto(self) -> None:
+    def _center_over_otter(self) -> None:
         root = self.app.root
         x = root.winfo_rootx() + 12
         y = root.winfo_rooty() + 24
@@ -1034,7 +1037,7 @@ class SettingsDialog:
         self.window.destroy()
 
 
-class OttoApp:
+class OtterApp:
     def __init__(
         self,
         root: tk.Tk,
@@ -1065,15 +1068,15 @@ class OttoApp:
         self.animation_state = "idle"
         self.animation_started_at = time.monotonic()
         self.animation_duration = ANIMATION_DURATIONS["idle"]
-        self.otto_frame_index = 0
-        self.last_otto_frame_at = self.animation_started_at
+        self.otter_frame_index = 0
+        self.last_otter_frame_at = self.animation_started_at
 
         self.behavior_state = "idle"
         self.behavior_state_ends_at = self.animation_started_at + self.rng.uniform(3.0, 7.0)
         self.walk_direction = 1
         self.walk_speed = 3
         self.walk_target_x: int | None = None
-        self.otto_frames_left: dict[str, list[tk.PhotoImage]] = {}
+        self.otter_frames_left: dict[str, list[tk.PhotoImage]] = {}
         self.last_usage_poll = 0.0
         self.last_usage_mtime = 0.0
         self.usage_source_label = ""
@@ -1094,10 +1097,10 @@ class OttoApp:
             bd=0,
         )
         self.canvas.pack(fill="both", expand=True)
-        self.otto_frames = self._load_otto_frames()
-        idle_frame = self.otto_frames["idle"][0]
-        self.otto_display_width = idle_frame.width()
-        self.otto_display_height = idle_frame.height()
+        self.otter_frames = self._load_otter_frames()
+        idle_frame = self.otter_frames["idle"][0]
+        self.otter_display_width = idle_frame.width()
+        self.otter_display_height = idle_frame.height()
         self.tooltip = Tooltip(root, self._tooltip_text)
         self.context_menu = self._build_context_menu()
         self._bind_events()
@@ -1123,7 +1126,7 @@ class OttoApp:
         return (self.tokens_used / self.weekly_quota) * 100.0
 
     def _configure_window(self) -> None:
-        self.root.title("Otto")
+        self.root.title("Otter")
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
         self.root.configure(bg=TRANSPARENT_COLOR)
@@ -1168,8 +1171,8 @@ class OttoApp:
     def body_bounds(self) -> tuple[float, float, float, float]:
         cx = self.width / 2
         cy = self.height * 0.50
-        rx = max(18.0, self.otto_display_width * 0.48)
-        ry = max(16.0, self.otto_display_height * 0.48)
+        rx = max(18.0, self.otter_display_width * 0.48)
+        ry = max(16.0, self.otter_display_height * 0.48)
         return cx, cy, rx, ry
 
     def is_body_hit(self, x: float, y: float) -> bool:
@@ -1394,8 +1397,8 @@ class OttoApp:
         self.animation_state = state
         self.animation_started_at = now
         self.animation_duration = duration or ANIMATION_DURATIONS[state]
-        self.otto_frame_index = 0
-        self.last_otto_frame_at = now
+        self.otter_frame_index = 0
+        self.last_otter_frame_at = now
 
     def _advance_animation(self, now: float) -> None:
         state_ends_at = self.animation_started_at + self.animation_duration
@@ -1468,7 +1471,7 @@ class OttoApp:
     def _start_pausing(self, now: float) -> None:
         self.behavior_state = "pausing"
         self.walk_target_x = None
-        if self.rng.random() < 0.35 and "sip" in self.otto_frames:
+        if self.rng.random() < 0.35 and "sip" in self.otter_frames:
             self.animation_state = "sip"
             self.animation_started_at = now
             self.animation_duration = ANIMATION_DURATIONS["sip"]
@@ -1538,16 +1541,16 @@ class OttoApp:
                 self.transition_start = 0.0
 
         bar_color = blend_color(self.previous_mood.bar, self.current_mood.bar, transition_t)
-        self._draw_otto(now)
+        self._draw_otter(now)
         if self.config["appearance"]["show_percentage_badge"]:
             self._draw_badge(self.width, self.height, bar_color)
 
-    def _otto_frame_subsample(self) -> int:
-        scale = max(0.25, min(1.0, self.config["appearance"]["otto_scale"]))
+    def _otter_frame_subsample(self) -> int:
+        scale = max(0.25, min(1.0, self.config["appearance"]["otter_scale"]))
         return max(1, min(4, round(1.0 / scale)))
 
     @staticmethod
-    def _prepare_otto_frame(pil_img: "Image.Image", scale: float) -> "Image.Image":
+    def _prepare_otter_frame(pil_img: "Image.Image", scale: float) -> "Image.Image":
         if pil_img.mode != "RGBA":
             pil_img = pil_img.convert("RGBA")
 
@@ -1582,13 +1585,13 @@ class OttoApp:
 
         return pil_img
 
-    def _load_otto_frames(self) -> dict[str, list[tk.PhotoImage]]:
+    def _load_otter_frames(self) -> dict[str, list[tk.PhotoImage]]:
         frames_by_state: dict[str, list[tk.PhotoImage]] = {}
-        self.otto_frames_left = {}
-        scale = self.config["appearance"]["otto_scale"]
+        self.otter_frames_left = {}
+        scale = self.config["appearance"]["otter_scale"]
 
         for state in ANIMATION_DURATIONS:
-            state_dir = OTTO_ANIMATION_DIR / state
+            state_dir = OTTER_ANIMATION_DIR / state
             if not state_dir.exists():
                 continue
             frame_paths = sorted(state_dir.glob("*.gif"))
@@ -1600,7 +1603,7 @@ class OttoApp:
             for path in frame_paths:
                 if PIL_AVAILABLE:
                     pil_img = Image.open(path)
-                    frame_img = self._prepare_otto_frame(pil_img, scale)
+                    frame_img = self._prepare_otter_frame(pil_img, scale)
                     frame = ImageTk.PhotoImage(frame_img)
                     left_frame = ImageTk.PhotoImage(
                         frame_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
@@ -1610,7 +1613,7 @@ class OttoApp:
                         data=base64.b64encode(path.read_bytes()).decode("ascii"),
                         format="gif",
                     )
-                    subsample = self._otto_frame_subsample()
+                    subsample = self._otter_frame_subsample()
                     if subsample > 1:
                         frame = frame.subsample(subsample, subsample)
                     left_frame = frame
@@ -1619,35 +1622,35 @@ class OttoApp:
                 left_frames.append(left_frame)
 
             frames_by_state[state] = frames
-            self.otto_frames_left[state] = left_frames
+            self.otter_frames_left[state] = left_frames
 
         if "idle" not in frames_by_state:
-            raise FileNotFoundError(f"Missing otter GIF frames in {OTTO_ANIMATION_DIR}")
+            raise FileNotFoundError(f"Missing otter GIF frames in {OTTER_ANIMATION_DIR}")
         return frames_by_state
 
-    def _current_otto_frames(self) -> list[tk.PhotoImage]:
+    def _current_otter_frames(self) -> list[tk.PhotoImage]:
         state = self.animation_state
-        if state not in self.otto_frames:
+        if state not in self.otter_frames:
             state = "idle"
-        if self.walk_direction < 0 and state in self.otto_frames_left:
-            return self.otto_frames_left[state]
-        return self.otto_frames[state]
+        if self.walk_direction < 0 and state in self.otter_frames_left:
+            return self.otter_frames_left[state]
+        return self.otter_frames[state]
 
-    def _advance_otto_frame(self, now: float, frame_count: int) -> None:
+    def _advance_otter_frame(self, now: float, frame_count: int) -> None:
         if frame_count <= 1:
-            self.otto_frame_index = 0
+            self.otter_frame_index = 0
             return
-        elapsed_ms = (now - self.last_otto_frame_at) * 1000.0
-        if elapsed_ms < OTTO_FRAME_MS:
+        elapsed_ms = (now - self.last_otter_frame_at) * 1000.0
+        if elapsed_ms < OTTER_FRAME_MS:
             return
-        steps = max(1, int(elapsed_ms // OTTO_FRAME_MS))
-        self.otto_frame_index = (self.otto_frame_index + steps) % frame_count
-        self.last_otto_frame_at = now
+        steps = max(1, int(elapsed_ms // OTTER_FRAME_MS))
+        self.otter_frame_index = (self.otter_frame_index + steps) % frame_count
+        self.last_otter_frame_at = now
 
-    def _draw_otto(self, now: float) -> None:
-        frames = self._current_otto_frames()
-        self._advance_otto_frame(now, len(frames))
-        frame = frames[self.otto_frame_index % len(frames)]
+    def _draw_otter(self, now: float) -> None:
+        frames = self._current_otter_frames()
+        self._advance_otter_frame(now, len(frames))
+        frame = frames[self.otter_frame_index % len(frames)]
         self.canvas.create_image(
             self.width / 2,
             self.height * 0.50,
@@ -1748,16 +1751,16 @@ def run_self_test() -> int:
         save_config(config_path, DEFAULT_CONFIG)
 
         root = tk.Tk()
-        app = OttoApp(root, config_path=config_path, usage_path=usage_path, enable_tray=False)
+        app = OtterApp(root, config_path=config_path, usage_path=usage_path, enable_tray=False)
         root.update()
 
         start_x = root.winfo_x()
         start_y = root.winfo_y()
-        otto_x = app.width // 2
-        otto_y = app.height // 2
-        app.on_press(FakeEvent(otto_x, otto_y, 400, 400))
-        app.on_drag(FakeEvent(otto_x, otto_y, 460, 445))
-        app.on_release(FakeEvent(otto_x, otto_y, 460, 445))
+        otter_x = app.width // 2
+        otter_y = app.height // 2
+        app.on_press(FakeEvent(otter_x, otter_y, 400, 400))
+        app.on_drag(FakeEvent(otter_x, otter_y, 460, 445))
+        app.on_release(FakeEvent(otter_x, otter_y, 460, 445))
         root.update()
         assert root.winfo_x() == start_x + 60
         assert root.winfo_y() == start_y + 45
@@ -1804,7 +1807,7 @@ def run_self_test() -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Otto - Windows desktop quota otter")
+    parser = argparse.ArgumentParser(description="Otter - Windows desktop quota otter")
     parser.add_argument("--self-test", action="store_true", help="run a local GUI smoke test and exit")
     args = parser.parse_args()
 
@@ -1812,12 +1815,12 @@ def main() -> int:
         return run_self_test()
 
     root = tk.Tk()
-    app = OttoApp(root)
+    app = OtterApp(root)
     if app.tray_error:
         messagebox.showwarning(
-            "Otto tray unavailable",
-            "Otto is running, but Windows tray setup failed. "
-            f"Right-click Otto for Settings and Quit.\n\n{app.tray_error}",
+            "Otter tray unavailable",
+            "Otter is running, but Windows tray setup failed. "
+            f"Right-click Otter for Settings and Quit.\n\n{app.tray_error}",
         )
     root.mainloop()
     return 0

@@ -12,7 +12,7 @@
     "poll_interval_sec": 30
   },
   "appearance": {
-    "otto_scale": 0.5,
+    "otter_scale": 0.5,
     "show_percentage_badge": false
   }
 }
